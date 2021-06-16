@@ -1,0 +1,57 @@
+library(tidyverse)
+library(readxl)
+library(ggplot2)
+library(lubridate)
+library(zoo)
+library(dplyr)
+library(scales)
+library(ggthemes)
+setwd("C:/YOUR DIRECTORY/")
+
+
+#load data
+df<-read_excel("PPI_data.xlsx", sheet = "data")
+#check data
+class(df)
+tail(df)
+str(df)
+
+#adjust date variable
+df<- df%>%mutate(date = mdy(Date))
+df2<-df%>%select(date,FDG,FDMFE,FDS, FDC,FD)
+
+#transform data for ggplot2 line plot
+df3<-df2%>%gather(measure, value, FDG,FDMFE,FDS, FDC,FD,convert = FALSE)
+df3<-df3 %>% rename(`Price Index`=measure)
+df4<-df3 %>% mutate(`Price Index` = case_when(`Price Index` == "FD"~ "Final Demand",
+                                               `Price Index` == "FDG"~ "Final Demand Goods",
+                                               `Price Index` == "FDS"~ "Final Demand Services",
+                                               `Price Index` == "FDC"~ "Final Demand Construction",
+                                               `Price Index` == "FDMFE"~ "Final Demand\nMinus Food & Energy"))
+
+#Lets make a nice line plot
+
+ggplot(df4,aes(x=date, y=value, group=`Price Index`))+ 
+  theme_bw()+
+  geom_line(aes(linetype=`Price Index`, color=`Price Index`))+
+  scale_x_date(date_breaks = "5 months",limits=c(as.Date("2019-02-01"),as.Date("2021-05-01")),expand = c(0, 0),breaks = NULL)+
+  #add % to y axis numbers
+  scale_y_continuous(limits = c(-5.5, 12),labels = function(value) paste0(value, "%"))+
+  annotate("rect", xmin = as.Date("2020-03-01"), xmax = as.Date("2021-05-01"), ymin = -Inf, ymax = Inf, fill = "gray", alpha = 0.2)+
+theme(panel.grid.minor = element_blank())+
+#pick your colors
+scale_color_manual(values=c('red','#E69F00','blue','purple','green'))+
+scale_linetype_manual(values=c("solid", "solid",'solid','solid','solid'))+
+  labs(title = "The Economic Monitor: Inflation", 
+       caption = "Source: Bureau Of Labor Statistics")+xlab("")+ylab("")+
+annotate("text", x = as.Date("2020-05-01"), y = 6,colour = "black", label = "COVID-19 Recession",fontface = 'italic',size = 2.3)+
+annotate("text", x = as.Date("2019-08-01"), y = 10.5,colour = "black", label = "Producer Price Index",fontface = 'plain',size = 4.1)+
+annotate("text", x = as.Date("2019-07-15"), y = 9.5,colour = "black", label = "12-month Percent Change",fontface = 'plain',size = 2.6) +  
+theme(panel.grid.major.x = element_blank(),
+      panel.grid.minor.x = element_blank(),
+      plot.title = element_text(size = 16, face="bold"),
+      plot.caption = element_text(hjust = 0,size = 9),
+      legend.text=element_text(size=8),
+      axis.text.x = element_text(vjust = -2))+
+annotate("text", x = as.Date("2020-12-01"), y = 7.5,colour = "blue", label = "Final Demand Goods",fontface = 'plain', size=2)+
+  annotate("segment", x = as.Date("2021-02-05"), xend = as.Date("2021-03-05"), y = 7.4, yend = 7.9,colour = "black")
